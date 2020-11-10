@@ -1,0 +1,39 @@
+{
+  "name": "mongoose-dataloader-generator",
+  "version": "1.0.0",
+  "main": "dist/index.js",
+  "module": "esm/index.js",
+  "sideEffects": false,
+  "files": [
+    "dist/",
+    "esm/"
+  ],
+  "types": "dist/index.d.ts",
+  "typings": "dist/index.d.ts",
+  "scripts": {
+    "prepare": "yarn build",
+    "prebuild": "yarn clean",
+    "build:cjs": "tsc",
+    "build:es": "tsc -m esNext --outDir esm",
+    "build": "yarn build:cjs && yarn build:es",
+    "clean": "rimraf dist esm"
+  },
+  "keywords": [],
+  "author": "WIlfred Lopez",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/mongoose": "^5.7.37",
+    "rimraf": "^3.0.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wilfredlopez/mongoose-dataloader-generator"
+  },
+  "homepage": "https://github.com/wilfredlopez/mongoose-dataloader-generator#readme",
+  "dependencies": {
+    "dataloader": "^2.0.0",
+    "mongoose": "^5.10.13",
+    "tslib": "^2.0.3",
+    "typescript": "^4.0.5"
+  }
+}
