@@ -1,6 +1,17 @@
 // TO CREATE NPM Library
 import DataLoader from 'dataloader'
 import { Document, FilterQuery, Model } from 'mongoose'
+import { Request, NextFunction, Response } from 'express'
+
+export interface WIthLoaderRequest<
+  T extends {},
+  P = Request['params'],
+  ResBody = any,
+  ReqBody = any,
+  ReqQuery = Request['query']
+> extends Request<P, ResBody, ReqBody, ReqQuery> {
+  loader?: T
+}
 
 export type GenericLoader<T> = DataLoader<string, T, string>
 
@@ -31,6 +42,7 @@ export interface LoaderRecorType<
  * import { User, Survey, SurveyQuestion } from '../interfaces'
  * //Mongosee Models
  * import { surveysDB, userDb, SurveyQuestionDB } from '../db'
+import { WIthLoaderRequest } from '../tests/generator.test'
  *
  *
  * type DocumentTypes = [Survey, User, SurveyQuestion]
@@ -145,5 +157,15 @@ export default abstract class MongooseLoaderGenerator<
     })
 
     return loader
+  }
+
+  async expressMiddleware<T extends WIthLoaderRequest<this>>(
+    req: T,
+    _res: Response,
+    next: NextFunction
+  ) {
+    await this.initialize()
+    req.loader = this
+    next()
   }
 }

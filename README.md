@@ -1,6 +1,8 @@
 # mongoose-dataloader-generator
 
-#### Takes a mongoose.Model array and creates dataloaders for each model.
+Abstract class that provided properly typed interfaces in order to create Dataloaders in one shot.
+
+Takes an array of mongoose models `(mongoose.Model)[]` and creates dataloaders for each model. \*see examples.
 
 ## Install
 
@@ -14,21 +16,92 @@ or
 yarn add mongoose-dataloader-generator
 ```
 
-### Example
+## Example Use
+
+#### Models and Document Interfaces
 
 ```ts
+//interfaces.ts
+import mongoose, { Document, Schema } from 'mongoose'
+export interface UserDocument extends Document {
+  email: string
+  password: string
+  name: string
+}
+
+export const User = mongoose.model<UserDocument>(
+  'User',
+  new Schema<UserDocument>({
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    password: String,
+    name: String,
+  })
+)
+
+export interface SurveyDocument extends Document {
+  name: string
+  user: UserDocument
+  questions: SurveyQuestionDocument[]
+}
+
+export const Survey = mongoose.model<SurveyDocument>(
+  'Survey',
+  new Schema<SurveyDocument>({
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    name: String,
+    questions: [
+      { type: mongoose.Schema.Types.ObjectId, ref: 'SurveyQuestion' },
+    ],
+  })
+)
+
+export interface SurveyQuestionDocument extends Document {
+  survey: SurveyDocument
+  title: string
+  options: string[]
+  answers: string[]
+}
+export const SurveyQuestion = mongoose.model<SurveyQuestionDocument>(
+  'SurveyQuestion',
+  new Schema<SurveyQuestionDocument>({
+    survey: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Survey',
+    },
+    title: String,
+    options: [String],
+    answers: [String],
+  })
+)
+```
+
+#### Example Class (MongooseLoader)
+
+```ts
+//MongooseLoader.ts
 import MongooseLoaderGenerator, {
   LoaderRecorType,
   GenericLoaders,
   GenericModels,
 } from 'mongoose-dataloader-generator'
-// Example Interfaces that extend mongosee.Document
-import { UserModel, SurveyModel, SurveyQuestionModel } from '../interfaces'
-//Example Mongosee Models
-import { Survey, User, SurveyQuestion } from '../db'
+import {
+  Survey,
+  User,
+  SurveyQuestion,
+  SurveyDocument,
+  UserDocument,
+  SurveyQuestionDocument,
+} from './interfaces'
 
 // Create a type with the Interfaces you want to support
-type DocumentTypes = [SurveyModel, UserModel, SurveyQuestionModel]
+type DocumentTypes = [SurveyDocument, UserDocument, SurveyQuestionDocument] // You can add as many as you want here.
 
 //Create Loaders, Models and RecordType Using the Generic Helpers
 type MyLoaders = GenericLoaders<DocumentTypes>
@@ -40,55 +113,55 @@ interface RecordType extends LoaderRecorType<DocumentTypes> {
   //...other here//
 }
 
-const MODELS: Models = [Survey, User, SurveyQuestion] //Array descrived by Models type.
+const MODELS: Models = [Survey, User, SurveyQuestion] //Array descrived by Models type. (add more here if needed)
 
-//Extend the Genetarot and pass the models to the constructor.
-export class Load extends MongooseLoaderGenerator<DocumentTypes, RecordType> {
+//Extend the Generator class and pass the models to the constructor.
+export class MongooseLoader extends MongooseLoaderGenerator<
+  DocumentTypes,
+  RecordType
+> {
   constructor() {
     super(MODELS)
   }
   //Implement initialize.
   // It should set all the loaders by calling the method `createLoaders`.
   async initialize() {
-    const loaders = this.createLoaders()
-    this.loaders.surveyLoader = loaders[0]
-    this.loaders.userLoader = loaders[1]
-    this.loaders.surveyQuestionLoader = loaders[2]
+    const [
+      surveyLoader,
+      userLoader,
+      surveyQuestionLoader,
+    ] = this.createLoaders()
+    this.loaders.surveyLoader = surveyLoader
+    this.loaders.userLoader = userLoader
+    this.loaders.surveyQuestionLoader = surveyQuestionLoader
     return this.loaders
   }
 }
 ```
 
-### Add Express Middleware to attach to request object
+#### Express Middleware Example
 
 ```ts
-export async function dataloaderMiddleware(req: any, _res: any, next: any) {
-  const myDataloader = new Load()
-  await myDataloader.initialize() // wait for the initialize function to run.
-  req.dataloader = myDataloader
-  next()
-}
-```
+import express, { Request } from 'express'
+import { WIthLoaderRequest } from 'mongoose-dataloader-generator'
+import { MongooseLoader } from './MongooseLoader'
 
-### Example Use
+const app = express()
+const loader = new MongooseLoader()
+//by default will attach the loader property to the request.
+app.use(loader.expressMiddleware)
 
-```ts
-import { Request, Response, Router } from 'express'
-import MyRequest from '../interfaces/index'
-import { Load } from '../load'
+// Request properly typed.
+export interface MyRequest<
+  P = Request['params'],
+  ResBody = any,
+  ReqBody = any,
+  ReqQuery = Request['query']
+> extends WIthLoaderRequest<MongooseLoader, P, ResBody, ReqBody, ReqQuery> {}
 
-export default interface MyRequest extends Request {
-  userId?: string
-  email?: string
-  myDataloader?: Load
-}
-
-const router = Router()
-
-router.get('/:id', ensureAdmin, async (req: MyRequest, res: Response) => {
-  const user = await req.myDataloader!.loaders.userLoader.load(req.params.id)
+app.get('/user/:id', async (req: MyRequest<{ id: string }>, res) => {
+  const { id } = req.params
+  const user = await req.loader!.loaders.userLoader.load(id)
   res.json(user)
 })
-
-export const UserController = router
 ```
