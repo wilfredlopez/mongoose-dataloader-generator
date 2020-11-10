@@ -1,6 +1,20 @@
 # mongoose-dataloader-generator
 
-### Takes a mongoose.Model array and creates dataloaders for each model.
+#### Takes a mongoose.Model array and creates dataloaders for each model.
+
+## Install
+
+```
+npm i mongoose-dataloader-generator
+```
+
+or
+
+```
+yarn add mongoose-dataloader-generator
+```
+
+### Example
 
 ```ts
 import MongooseLoaderGenerator, {
